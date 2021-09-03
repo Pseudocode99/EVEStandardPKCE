@@ -11,4 +11,4 @@ You can find examples of how to use the library [here](https://github.com/gehnst
 
 ## Explanation of design decisions made for SSO and API routes
 ## NuGet
-The package is now on NuGet! You can find it here: [EVEStandard NuGet Page](https://www.nuget.org/packages/PointyHatGames.EVEStandard)
+The package is now on NuGet! You can find it here: [EVEStandard NuGet Page](https://www.nuget.org/packages/Pixelvalley.EVEStandard)

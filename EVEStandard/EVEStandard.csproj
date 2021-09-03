@@ -12,7 +12,7 @@
     <PackageProjectUrl>https://github.com/Pseudocode99/EVEStandardPKCE</PackageProjectUrl>
     <RepositoryUrl>https://github.com/Pseudocode99/EVEStandardPKCE</RepositoryUrl>
     <Description>A C# Library to access the EVE Online ESI API
-Original created byMatthew Park with PKCE Extension from Christof Rakowski</Description>
+Original created by Matthew Park with PKCE Extension from Christof Rakowski</Description>
     <Copyright>Copyright ©2021 Christof Rakowski</Copyright>
     <PackageTags>eveonline esi api csharp</PackageTags>
     <Company>Christof Rakowski</Company>
