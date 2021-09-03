@@ -1,18 +1,19 @@
-﻿using System;
+﻿using EVEStandard.Enumerations;
+using EVEStandard.Models.SSO;
+using EVEStandard.Utilities;
+using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Threading.Tasks;
 using System.Web;
-using EVEStandard.Enumerations;
-using EVEStandard.Models.SSO;
-using Newtonsoft.Json;
 
 namespace EVEStandard
 {
     /// <summary>
-    /// The SSO specifies the workflow required to use Single Sign-On with EVE Online. SSO can be used purely 
+    /// The SSO specifies the workflow required to use Single Sign-On with EVE Online. SSO can be used purely
     /// for authentication or also for accessing ESI API endpoints that require specific scopes.
     /// </summary>
     /// <remarks>
@@ -50,7 +51,7 @@ namespace EVEStandard
         /// </remarks>
         internal SSO(string callbackUri, string clientId, string secretKey, DataSource dataSource)
         {
-            if(string.IsNullOrEmpty(callbackUri) || string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(secretKey))
+            if (string.IsNullOrEmpty(callbackUri) || string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(secretKey))
             {
                 throw new EVEStandardException("SSO should be initialized with non-null and non-empty strings. callbackUri: " + callbackUri + " clientId: " + clientId + " secretKey: " + secretKey);
             }
@@ -61,7 +62,20 @@ namespace EVEStandard
             this.dataSource = dataSource;
         }
 
-        internal static HttpClient HTTP {
+        internal SSO(string callbackUri, string clientId, DataSource dataSource)
+        {
+            if (string.IsNullOrEmpty(callbackUri) || string.IsNullOrEmpty(clientId))
+            {
+                throw new EVEStandardException("SSO should be initialized with non-null and non-empty strings. callbackUri: " + callbackUri + " clientId: " + clientId);
+            }
+
+            CallbackUri = callbackUri;
+            ClientId = clientId;
+            this.dataSource = dataSource;
+        }
+
+        internal static HttpClient HTTP
+        {
             set => http = value;
         }
 
@@ -70,6 +84,8 @@ namespace EVEStandard
         internal string ClientId { get; }
 
         internal string SecretKey { get; }
+
+        public string CodeVerifier { get; private set; }
 
         /// <summary>
         /// Generates the URL you should have users click on with one of the EVE Online provided button images.
@@ -104,7 +120,28 @@ namespace EVEStandard
             };
 
             model.SignInURI = GetBaseURL() + SSO_AUTHORIZE + "response_type=code&redirect_uri=" + HttpUtility.UrlEncode(CallbackUri) +
-                "&client_id=" + ClientId + "&scope=" + HttpUtility.UrlEncode(String.Join(" ", scopes)) + "&state=" + HttpUtility.UrlEncode(model.ExpectedState);
+                              "&client_id=" + ClientId + "&scope=" + HttpUtility.UrlEncode(String.Join(" ", scopes)) + "&code_challenge_method=S256" + "&state=" + HttpUtility.UrlEncode(model.ExpectedState);
+
+            return model;
+        }
+
+        public Authorization AuthorizeToEVEUriPkce(List<string> scopes, string state)
+        {
+            if (scopes == null)
+            {
+                throw new ArgumentNullException();
+            }
+
+            var model = new Authorization
+            {
+                ExpectedState = state ?? ""
+            };
+
+            PkceProtocol pkceProtocol = new PkceProtocol();
+            CodeVerifier = pkceProtocol.GenerateCodeVerifier();
+
+            model.SignInURI = GetBaseURL() + SSO_AUTHORIZE + "response_type=code&redirect_uri=" + HttpUtility.UrlEncode(CallbackUri) +
+                              "&client_id=" + ClientId + "&scope=" + HttpUtility.UrlEncode(String.Join(" ", scopes)) + $"&code_challenge={pkceProtocol.GenerateCodeChallenge(CodeVerifier)}" + "&state=" + HttpUtility.UrlEncode(model.ExpectedState);
 
             return model;
         }
@@ -127,7 +164,7 @@ namespace EVEStandard
                 model.ExpectedState = "";
             }
 
-            if(model.ExpectedState != model.ReturnedState)
+            if (model.ExpectedState != model.ReturnedState)
             {
                 throw new EVEStandardException("model parameter expected the ExpectedState to match the ReturnedState, they are actually set as: ExpectedState: " + model.ExpectedState + " ReturnedState: " + model.ReturnedState);
             }
@@ -154,10 +191,62 @@ namespace EVEStandard
             }
             catch (Exception inner)
             {
-
                 throw new EVEStandardException("An error occured with some part of the http request/response", inner);
             }
         }
+
+        /// <summary>
+        /// Once your application receives the callback from SSO, you call this to verify the state is the expected one to be returned and to request an access code with the authenication code you were given.
+        /// This is the PKCE Workflow
+        /// </summary>
+        /// <param name="model"></param>
+        /// <returns></returns>
+        public async Task<AccessTokenDetails> VerifyPkceAuthorizationAsync(Authorization model)
+        {
+            if (model.ReturnedState == null)
+            {
+                model.ReturnedState = "";
+            }
+
+            if (model.ExpectedState == null)
+            {
+                model.ExpectedState = "";
+            }
+
+            if (model.ExpectedState != model.ReturnedState)
+            {
+                throw new EVEStandardException("model parameter expected the ExpectedState to match the ReturnedState, they are actually set as: ExpectedState: " + model.ExpectedState + " ReturnedState: " + model.ReturnedState);
+            }
+
+            try
+            {
+                var byteArray = Encoding.ASCII.GetBytes(ClientId + ":" + SecretKey);
+
+                var stringContent = new FormUrlEncodedContent(new[]
+                {
+                    new KeyValuePair<string, string>("grant_type", "authorization_code"),
+                    new KeyValuePair<string, string>("code", model.AuthorizationCode),
+                    new KeyValuePair<string, string>("client_id", ClientId),
+                    new KeyValuePair<string, string>("code_verifier", CodeVerifier),
+                });
+                var request = new HttpRequestMessage
+                {
+                    RequestUri = new Uri(GetBaseURL() + SSO_TOKEN),
+                    Method = HttpMethod.Post,
+                    Content = stringContent
+                };
+                request.Headers.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(byteArray));
+
+                var response = await http.SendAsync(request).ConfigureAwait(false);
+                return JsonConvert.DeserializeObject<AccessTokenDetails>(await response.Content.ReadAsStringAsync());
+            }
+            catch (Exception inner)
+            {
+                throw new EVEStandardException("An error occured with some part of the http request/response", inner);
+            }
+        }
+
+
 
         /// <summary>
         /// If your access token has expired and you need a new one you can pass the <c>AccessTokenDetails</c> POCO here, with a valid refresh token, to retrieve a new access token.
@@ -188,7 +277,6 @@ namespace EVEStandard
             }
             catch (Exception inner)
             {
-
                 throw new EVEStandardException("An error occured with some part of the http request/response", inner);
             }
         }
@@ -215,8 +303,10 @@ namespace EVEStandard
             }
             catch (Exception inner)
             {
-
-                throw new EVEStandardException("An error occured with some part of the http request/response", inner);
+                throw new EVEStandardException("An error " +
+                                               "occured" +
+                                               "" +
+                                               " with some part of the http request/response", inner);
             }
         }
 
@@ -249,7 +339,6 @@ namespace EVEStandard
             }
             catch (Exception inner)
             {
-
                 throw new EVEStandardException("An error occured with some part of the http request/response", inner);
             }
         }
@@ -261,8 +350,10 @@ namespace EVEStandard
             {
                 case DataSource.Tranquility:
                     return TRANQUILITY_SSO_BASE_URL;
+
                 case DataSource.Serenity:
                     return SERENITY_SSO_BASE_URL;
+
                 default:
                     throw new ArgumentOutOfRangeException();
             }

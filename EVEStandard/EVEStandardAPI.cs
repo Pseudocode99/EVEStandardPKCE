@@ -1,23 +1,22 @@
-﻿using System;
+﻿using EVEStandard.API;
+using EVEStandard.Enumerations;
+using EVEStandard.Models.API;
+using Microsoft.Extensions.Logging;
+using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using System.Web;
-using EVEStandard.API;
-using EVEStandard.Enumerations;
-using EVEStandard.Models.API;
-using Microsoft.Extensions.Logging;
 
 namespace EVEStandard
 {
     public class EVEStandardAPI
     {
-
         private static HttpClient http;
-        private string userAgent;
         private readonly string dataSource;
+        private string userAgent;
 
         /// <summary>
         /// Initialize the EVEStandard Library
@@ -28,8 +27,8 @@ namespace EVEStandard
         /// <param name="clientHandler"></param>
         public EVEStandardAPI(string userAgent, DataSource dataSource, TimeSpan timeOut, HttpClientHandler clientHandler = null)
         {
-            if(clientHandler == null)
-            { 
+            if (clientHandler == null)
+            {
                 clientHandler = new HttpClientHandler
                 {
                     AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate
@@ -49,12 +48,6 @@ namespace EVEStandard
             initializeAPI();
         }
 
-        public void AddLogging(ILoggerFactory factory)
-        {
-            LibraryLogging.LoggerFactory = factory;
-            initializeAPI();
-        }
-
         /// <inheritdoc />
         /// <summary>
         /// Initialize the EVE Standard Library with Single Sign On support.
@@ -70,6 +63,96 @@ namespace EVEStandard
         {
             SSO.HTTP = http;
             SSO = new SSO(callbackUri, clientId, secretKey, dataSource);
+        }
+
+        /// <summary>
+        /// Initialize the EVE Standard Library with PKCE support.
+        /// </summary>
+        /// <param name="userAgent"></param>
+        /// <param name="dataSource"></param>
+        /// <param name="timeOut"></param>
+        /// <param name="callbackUri"></param>
+        /// <param name="clientId"></param>
+        /// <param name="handler"></param>
+        public EVEStandardAPI(string userAgent, DataSource dataSource, TimeSpan timeOut, string callbackUri, string clientId, HttpClientHandler handler = null) : this(userAgent, dataSource, timeOut, handler)
+        {
+            SSO.HTTP = http;
+            SSO = new SSO(callbackUri, clientId, secretKey, dataSource);
+        }
+
+        public Alliance Alliance { get; private set; }
+
+        public Assets Assets { get; private set; }
+
+        public Bookmarks Bookmarks { get; private set; }
+
+        public Calendar Calendar { get; private set; }
+
+        public Character Character { get; private set; }
+
+        public Clones Clones { get; private set; }
+
+        public Contacts Contacts { get; private set; }
+
+        public Contracts Contracts { get; private set; }
+
+        public Corporation Corporation { get; private set; }
+
+        public Dogma Dogma { get; private set; }
+
+        public FactionWarfare FactionWarfare { get; private set; }
+
+        public Fittings Fittings { get; private set; }
+
+        public Fleets Fleets { get; private set; }
+
+        public Incursions Incursion { get; private set; }
+
+        public Industry Industry { get; private set; }
+
+        public Insurance Insurance { get; private set; }
+
+        public Killmails Killmails { get; private set; }
+
+        public Location Location { get; private set; }
+
+        public Loyalty Loyalty { get; private set; }
+
+        public Mail Mail { get; private set; }
+
+        public Market Market { get; private set; }
+
+        public Opportunities Opportunities { get; private set; }
+
+        public PlanetaryInteraction PlanetaryInteraction { get; private set; }
+
+        public Routes Routes { get; private set; }
+
+        public Search Search { get; private set; }
+
+        public Skills Skills { get; private set; }
+
+        public Sovereignty Sovereignty { get; private set; }
+
+        /// <summary>
+        /// Perform SSO Authentication operations
+        /// </summary>
+        public SSO SSO { get; }
+
+        public Status Status { get; private set; }
+
+        public Universe Universe { get; private set; }
+
+        public UserInterface UserInterface { get; private set; }
+
+        public Wallet Wallet { get; private set; }
+
+        public Wars Wars { get; private set; }
+
+        public void AddLogging(ILoggerFactory factory)
+        {
+            LibraryLogging.LoggerFactory = factory;
+            initializeAPI();
         }
 
         /// <summary>
@@ -115,15 +198,19 @@ namespace EVEStandard
                 case "GET":
                     responseModel = await api.GetAsync(route, auth, ifNoneMatch, queryParameters);
                     break;
+
                 case "POST":
                     responseModel = await api.PostAsync(route, auth, body, ifNoneMatch, queryParameters);
                     break;
+
                 case "PUT":
                     responseModel = await api.PutAsync(route, auth, body, queryParameters);
                     break;
+
                 case "DELETE":
                     responseModel = await api.DeleteAsync(route, auth, queryParameters);
                     break;
+
                 default:
                     throw new ArgumentException("Argument was invalid", nameof(httpMethod));
             }
@@ -135,44 +222,6 @@ namespace EVEStandard
 
             return responseModel.JSONString;
         }
-
-        /// <summary>
-        /// Perform SSO Authentication operations
-        /// </summary>
-        public SSO SSO { get; }
-
-        public Alliance Alliance { get; private set; }
-        public Assets Assets { get; private set; }
-        public Bookmarks Bookmarks { get; private set; }
-        public Calendar Calendar { get; private set; }
-        public Character Character { get; private set; }
-        public Clones Clones { get; private set; }
-        public Contacts Contacts { get; private set; }
-        public Contracts Contracts { get; private set; }
-        public Corporation Corporation { get; private set; }
-        public Dogma Dogma { get; private set; }
-        public FactionWarfare FactionWarfare { get; private set; }
-        public Fittings Fittings { get; private set; }
-        public Fleets Fleets { get; private set; }
-        public Incursions Incursion { get; private set; }
-        public Industry Industry { get; private set; }
-        public Insurance Insurance { get; private set; }
-        public Killmails Killmails { get; private set; }
-        public Location Location { get; private set; }
-        public Loyalty Loyalty { get; private set; }
-        public Mail Mail { get; private set; }
-        public Market Market { get; private set; }
-        public Opportunities Opportunities { get; private set; }
-        public PlanetaryInteraction PlanetaryInteraction { get; private set; }
-        public Routes Routes { get; private set; }
-        public Search Search { get; private set; }
-        public Skills Skills { get; private set; }
-        public Sovereignty Sovereignty { get; private set; }
-        public Status Status { get; private set; }
-        public Universe Universe { get; private set; }
-        public UserInterface UserInterface { get; private set; }
-        public Wallet Wallet { get; private set; }
-        public Wars Wars { get; private set; }
 
         // ReSharper disable once InconsistentNaming
         private void initializeAPI()
