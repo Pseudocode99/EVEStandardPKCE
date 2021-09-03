@@ -77,7 +77,7 @@ namespace EVEStandard
         public EVEStandardAPI(string userAgent, DataSource dataSource, TimeSpan timeOut, string callbackUri, string clientId, HttpClientHandler handler = null) : this(userAgent, dataSource, timeOut, handler)
         {
             SSO.HTTP = http;
-            SSO = new SSO(callbackUri, clientId, secretKey, dataSource);
+            SSO = new SSO(callbackUri, clientId, dataSource);
         }
 
         public Alliance Alliance { get; private set; }

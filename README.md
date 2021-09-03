@@ -1,9 +1,9 @@
-# EVE Standard - A C# Library to access the EVE Online ESI API
+# EVE Standard - A C# Library to access the EVE Online ESI API with the PKCE Workflow
 ![.NET Core](https://github.com/gehnster/EVEStandard/workflows/.NET%20Core/badge.svg?branch=master)
 
 This library is meant to access the EVE Online ESI API through a C# library. This library was built using .NET Standard so as to be compatible with as many recent .NET frameworks as possible.
+Original build by [gehnster](https://github.com/gehnster/EVEStandard)
 
-## [Discord Server](https://discord.gg/SVyVze5)
 
 ## Example of how the library works
 You can find examples of how to use the library [here](https://github.com/gehnster/EVEStandard-Examples)
